@@ -434,6 +434,14 @@ BakeryConfig load_config(const char *config_file) {
     // Initialize config with default values
     memset(&config, 0, sizeof(BakeryConfig));
     
+    // Set default maximum production limits
+    config.max_items_per_type[PRODUCT_BREAD] = 50;
+    config.max_items_per_type[PRODUCT_CAKE] = 30;
+    config.max_items_per_type[PRODUCT_SANDWICH] = 40; 
+    config.max_items_per_type[PRODUCT_SWEET] = 60;
+    config.max_items_per_type[PRODUCT_SWEET_PATISSERIE] = 25;
+    config.max_items_per_type[PRODUCT_SAVORY_PATISSERIE] = 25;
+    
     fp = fopen(config_file, "r");
     if (!fp) {
         perror("Failed to open configuration file");
@@ -468,6 +476,21 @@ BakeryConfig load_config(const char *config_file) {
                 config.num_categories[PRODUCT_SWEET_PATISSERIE] = atoi(value);
             } else if (strcmp(key, "NUM_SAVORY_PATISSERIES") == 0) {
                 config.num_categories[PRODUCT_SAVORY_PATISSERIE] = atoi(value);
+            }
+            
+            // Maximum product limits
+            else if (strcmp(key, "MAX_BREAD") == 0) {
+                config.max_items_per_type[PRODUCT_BREAD] = atoi(value);
+            } else if (strcmp(key, "MAX_CAKE") == 0) {
+                config.max_items_per_type[PRODUCT_CAKE] = atoi(value);
+            } else if (strcmp(key, "MAX_SANDWICH") == 0) {
+                config.max_items_per_type[PRODUCT_SANDWICH] = atoi(value);
+            } else if (strcmp(key, "MAX_SWEET") == 0) {
+                config.max_items_per_type[PRODUCT_SWEET] = atoi(value);
+            } else if (strcmp(key, "MAX_SWEET_PATISSERIE") == 0) {
+                config.max_items_per_type[PRODUCT_SWEET_PATISSERIE] = atoi(value);
+            } else if (strcmp(key, "MAX_SAVORY_PATISSERIE") == 0) {
+                config.max_items_per_type[PRODUCT_SAVORY_PATISSERIE] = atoi(value);
             }
             
             // Staff configuration

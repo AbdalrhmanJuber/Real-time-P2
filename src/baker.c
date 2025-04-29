@@ -94,14 +94,14 @@ bool bake_products(BakerType type, ProductionStatus *status, BakeryConfig config
     
     switch (type) {
         case BAKER_CAKE_SWEET:
-            // Check if there are unbaked cakes or sweets
-            if (status->produced_items[PRODUCT_CAKE] < status->produced_items[PRODUCT_CAKE] + 10) {
+            // Check if we should bake more cakes (limit to 100)
+            if (status->produced_items[PRODUCT_CAKE] < config.max_items_per_type[PRODUCT_CAKE]) {
                 // Simulate baking a cake
                 status->produced_items[PRODUCT_CAKE]++;
                 printf("Baker baked a cake. Total: %d\n", status->produced_items[PRODUCT_CAKE]);
                 baked_something = true;
             } 
-            else if (status->produced_items[PRODUCT_SWEET] < status->produced_items[PRODUCT_SWEET] + 10) {
+            else if (status->produced_items[PRODUCT_SWEET] < config.max_items_per_type[PRODUCT_SWEET]) {
                 // Simulate baking sweets
                 status->produced_items[PRODUCT_SWEET]++;
                 printf("Baker baked sweets. Total: %d\n", status->produced_items[PRODUCT_SWEET]);
@@ -110,9 +110,9 @@ bool bake_products(BakerType type, ProductionStatus *status, BakeryConfig config
             break;
             
         case BAKER_PATISSERIE:
-            // Check if there are unbaked patisseries
+            // Check if we should bake more patisseries
             if (status->produced_items[PRODUCT_SWEET_PATISSERIE] < 
-                status->produced_items[PRODUCT_SWEET_PATISSERIE] + 5) {
+                config.max_items_per_type[PRODUCT_SWEET_PATISSERIE]) {
                 // Simulate baking sweet patisserie
                 status->produced_items[PRODUCT_SWEET_PATISSERIE]++;
                 printf("Baker baked a sweet patisserie. Total: %d\n", 
@@ -120,7 +120,7 @@ bool bake_products(BakerType type, ProductionStatus *status, BakeryConfig config
                 baked_something = true;
             }
             else if (status->produced_items[PRODUCT_SAVORY_PATISSERIE] < 
-                     status->produced_items[PRODUCT_SAVORY_PATISSERIE] + 5) {
+                     config.max_items_per_type[PRODUCT_SAVORY_PATISSERIE]) {
                 // Simulate baking savory patisserie
                 status->produced_items[PRODUCT_SAVORY_PATISSERIE]++;
                 printf("Baker baked a savory patisserie. Total: %d\n", 
@@ -130,10 +130,21 @@ bool bake_products(BakerType type, ProductionStatus *status, BakeryConfig config
             break;
             
         case BAKER_BREAD:
-            // Bake bread (no dependency check since it's the first product)
-            status->produced_items[PRODUCT_BREAD]++;
-            printf("Baker baked bread. Total: %d\n", status->produced_items[PRODUCT_BREAD]);
-            baked_something = true;
+            // Check if we should bake more bread
+            if (status->produced_items[PRODUCT_BREAD] < config.max_items_per_type[PRODUCT_BREAD]) {
+                // Simulate baking bread
+                status->produced_items[PRODUCT_BREAD]++;
+                printf("Baker baked bread. Total: %d\n", status->produced_items[PRODUCT_BREAD]);
+                baked_something = true;
+            }
+            
+            // Also handle sandwich production if bread baker is responsible
+            if (status->produced_items[PRODUCT_SANDWICH] < config.max_items_per_type[PRODUCT_SANDWICH]) {
+                // Simulate making sandwich
+                status->produced_items[PRODUCT_SANDWICH]++;
+                printf("Baker made sandwich. Total: %d\n", status->produced_items[PRODUCT_SANDWICH]);
+                baked_something = true;
+            }
             break;
     }
     

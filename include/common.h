@@ -18,6 +18,7 @@
 #define MSG_MANAGEMENT_DECISION 2
 #define MSG_SUPPLY_CHAIN_UPDATE 3
 #define MSG_SIMULATION_END 4
+#define MSG_CUSTOMER_RESPONSE_BASE 100  // Base for customer response IDs
 
 // Inventory item types (raw materials)
 typedef enum {
@@ -88,6 +89,7 @@ typedef struct {
     int subtype;  // Flavor, variety, etc.
     int quantity;
     bool is_complaint;
+    bool fulfilled;  // Indicates if request was fulfilled
 } CustomerMsg;
 
 // Message structure for management decisions
@@ -118,6 +120,9 @@ typedef struct {
     
     // Production times (in milliseconds)
     int production_times[PRODUCT_TYPE_COUNT];
+    
+    // Maximum items per product type
+    int max_items_per_type[PRODUCT_TYPE_COUNT];
     
     // Simulation thresholds
     int thresholds[4];  // [frustrated, complained, missing, profit]

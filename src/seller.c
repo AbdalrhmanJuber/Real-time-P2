@@ -61,32 +61,27 @@ void handle_customer_request(CustomerMsg *request, ProductionStatus *status,
         // Increment missing items counter
         status->missing_items_requests++;
         
-        // Set failure in response (we'll handle this in the seller_process function)
-        request->is_complaint = false;  // Not a complaint, just unavailable
-        return;
+        // Set failure in response
+        request->fulfilled = false;
+        // Removed the early return so we still send a response
+    } else {
+        // Product is available - fulfill the request
+        request->fulfilled = true;
+        
+        // Update the production status
+        status->sold_items[request->product_type] += request->quantity;
+        
+        // Count this as a successful transaction
+        (*customers_served)++;
+        
+        // Simulate the time it takes to package and hand over the product
+        int service_time = 500 + (rand() % 1000);  // 0.5-1.5 seconds
+        usleep(service_time * 1000);
+        
+        printf("Order for customer %d fulfilled\n", request->customer_id);
     }
     
-    // Product is available - update sold count
-    status->sold_items[request->product_type] += request->quantity;
-    
-    // Calculate price
-    float base_price = config.product_prices[request->product_type];
-    float price = base_price * request->quantity;
-    
-    // Apply any variation based on subtype (could add premium for special subtypes)
-    // Just a simple example - in a real system this would be more complex
-    if (request->subtype > 0) {
-        price *= (1.0 + (request->subtype * 0.1));  // 10% price increase per subtype level
-    }
-    
-    // Update profit
-    status->total_profit += price;
-    
-    // Increment customer count
-    (*customers_served)++;
-    
-    printf("Sold %d units of product %d to customer %d for $%.2f\n", 
-           request->quantity, request->product_type, request->customer_id, price);
+    // Now we always send a response, whether the product was available or not
 }
 
 // Seller process main function
@@ -131,39 +126,34 @@ void seller_process(int id, int customer_msgq_id, int prod_status_shm_id,
             continue;
         }
         
-        // Handle the customer request
-        handle_customer_request(&customer_msg, status, config, &customers_served);
-        
-        // Unlock production status
-        if (semop(prod_sem_id, &prod_unlock, 1) == -1) {
-            perror("Seller: Failed to unlock production status semaphore");
-        }
-        
-        // Send response back to customer
-        customer_msg.msg_type = MSG_CUSTOMER_REQUEST;  // Reuse the same message type for simplicity
-        if (msgsnd(customer_msgq_id, &customer_msg, sizeof(CustomerMsg) - sizeof(long), 0) == -1) {
-            perror("Seller: Failed to send response to customer");
-        }
-        
-        // Process any customer complaints (using the is_complaint field to identify complaints)
-        msg_size = msgrcv(customer_msgq_id, &customer_msg, sizeof(CustomerMsg) - sizeof(long),
-                         MSG_CUSTOMER_REQUEST, IPC_NOWAIT);
-        
-        if (msg_size != -1 && customer_msg.is_complaint) {
-            // Lock production status for complaint processing
-            if (semop(prod_sem_id, &prod_lock, 1) == -1) {
-                perror("Seller: Failed to lock production status semaphore");
-                continue;
-            }
-            
+        if (customer_msg.is_complaint) {
             // Handle the complaint
             handle_customer_complaint(&customer_msg, status);
             
-            // Unlock production status
+            // Unlock production status after handling complaint
             if (semop(prod_sem_id, &prod_unlock, 1) == -1) {
                 perror("Seller: Failed to unlock production status semaphore");
             }
+        } else {
+            // Handle the customer request
+            handle_customer_request(&customer_msg, status, config, &customers_served);
+            
+            // Prepare response - use customer ID + response base for message type
+            CustomerMsg response_msg = customer_msg;
+            response_msg.msg_type = customer_msg.customer_id + MSG_CUSTOMER_RESPONSE_BASE;
+            
+            // Unlock production status before sending response
+            if (semop(prod_sem_id, &prod_unlock, 1) == -1) {
+                perror("Seller: Failed to unlock production status semaphore");
+            }
+            
+            // Send response back to customer
+            if (msgsnd(customer_msgq_id, &response_msg, sizeof(CustomerMsg) - sizeof(long), 0) == -1) {
+                perror("Seller: Failed to send response to customer");
+            }
         }
+        
+        // We've already unlocked in both branches, so no need to unlock here
     }
     
     printf("Seller %d terminating, served %d customers (PID: %d)\n", 

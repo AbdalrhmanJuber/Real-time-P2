@@ -81,6 +81,9 @@ void customer_process(int id, int msg_queue_id, int prod_status_shm_id, int prod
     request_msg.customer_id = id;
     request_msg.is_complaint = false;
     
+    // Keep track of whether all requests were fulfilled
+    bool all_requests_fulfilled = true;
+    
     // Send the request to a seller
     for (int i = 0; i < num_items; i++) {
         // Pick a random product
@@ -100,18 +103,55 @@ void customer_process(int id, int msg_queue_id, int prod_status_shm_id, int prod
         // Send the request to the message queue
         if (msgsnd(msg_queue_id, &request_msg, sizeof(request_msg) - sizeof(long), 0) == -1) {
             perror("Customer: Failed to send message to queue");
+            all_requests_fulfilled = false;
             break;
         }
         
         printf("Customer %d requested %d of product %d (subtype %d)\n", 
                id, request_msg.quantity, request_msg.product_type, request_msg.subtype);
         
+        // Wait for response with timeout based on patience
+        CustomerMsg response_msg;
+        time_t start_time = time(NULL);
+        bool got_response = false;
+        
+        while ((time(NULL) - start_time) < patience) {
+            ssize_t recv_size = msgrcv(msg_queue_id, &response_msg, sizeof(CustomerMsg) - sizeof(long),
+                                     id + MSG_CUSTOMER_RESPONSE_BASE, IPC_NOWAIT);
+            
+            if (recv_size != -1) {
+                // Got a response for this specific request
+                if (response_msg.product_type == request_msg.product_type &&
+                    response_msg.subtype == request_msg.subtype) {
+                    
+                    got_response = true;
+                    
+                    // Check if the request was fulfilled
+                    if (response_msg.fulfilled) {
+                        printf("Customer %d received %d of product %d (subtype %d)\n",
+                               id, request_msg.quantity, request_msg.product_type, request_msg.subtype);
+                    } else {
+                        printf("Customer %d could not get product %d (subtype %d)\n",
+                               id, request_msg.product_type, request_msg.subtype);
+                        all_requests_fulfilled = false;
+                    }
+                    break;
+                }
+            }
+            
+            // Wait a bit before checking again
+            usleep(100000);  // 100ms
+        }
+        
+        if (!got_response) {
+            printf("Customer %d timed out waiting for product %d\n", 
+                   id, request_msg.product_type);
+            all_requests_fulfilled = false;
+        }
+        
         // Wait a short time between different item requests
         usleep(500000);  // 0.5 seconds
     }
-    
-    // Wait for their patience time to be served
-    sleep(patience);
     
     // Lock production status to update statistics
     struct sembuf prod_lock = {0, -1, 0};
@@ -123,19 +163,21 @@ void customer_process(int id, int msg_queue_id, int prod_status_shm_id, int prod
         exit(EXIT_FAILURE);
     }
     
-    // Customer becomes frustrated if they're still waiting after their patience runs out
-    status->frustrated_customers++;
-    
-    // Decide if customer complains
-    if ((double)rand() / RAND_MAX < config.complaint_probability) {
-        // Send a complaint message
-        request_msg.is_complaint = true;
+    // Only mark customer as frustrated if not all requests were fulfilled
+    if (!all_requests_fulfilled) {
+        status->frustrated_customers++;
         
-        if (msgsnd(msg_queue_id, &request_msg, sizeof(request_msg) - sizeof(long), 0) == -1) {
-            perror("Customer: Failed to send complaint message");
-        } else {
-            printf("Customer %d filed a complaint\n", id);
-            status->complained_customers++;
+        // Decide if customer complains
+        if ((double)rand() / RAND_MAX < config.complaint_probability) {
+            // Send a complaint message
+            request_msg.is_complaint = true;
+            request_msg.msg_type = MSG_CUSTOMER_REQUEST;
+            
+            if (msgsnd(msg_queue_id, &request_msg, sizeof(request_msg) - sizeof(long), 0) == -1) {
+                perror("Customer: Failed to send complaint message");
+            } else {
+                printf("Customer %d filed a complaint\n", id);
+            }
         }
     }
     
@@ -144,7 +186,8 @@ void customer_process(int id, int msg_queue_id, int prod_status_shm_id, int prod
         perror("Customer: Failed to unlock production status semaphore");
     }
     
-    printf("Customer %d leaving after %d seconds (PID: %d)\n", id, patience, getpid());
+    printf("Customer %d leaving %s (PID: %d)\n", 
+           id, all_requests_fulfilled ? "satisfied" : "frustrated", getpid());
     
     // Detach from shared memory
     shmdt(status);
