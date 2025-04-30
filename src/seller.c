@@ -35,9 +35,21 @@ bool check_product_availability(ProductType type, int subtype, int quantity,
     // Check if we have enough of this product type available
     int available = status->produced_items[type] - status->sold_items[type];
     
-    // For now, we don't track subtypes in our inventory model
-    // In a more complex system, we would check availability by subtype
+    // Add some constraint logic to simulate limited inventory
+    // For certain products, enforce stricter availability constraints
+    if (type == PRODUCT_CAKE || type == PRODUCT_SWEET_PATISSERIE) {
+        // These are specialty items - we want to maintain at least 3 in inventory
+        if (available - quantity < 3) {
+            return false; // Keep at least 3 items in reserve
+        }
+    }
     
+    // For sandwich, require more inventory available (simulate high demand)
+    if (type == PRODUCT_SANDWICH && available < quantity * 2) {
+        return false; // Need twice as many sandwiches as requested
+    }
+    
+    // Normal inventory check
     return (available >= quantity);
 }
 
@@ -70,6 +82,11 @@ void handle_customer_request(CustomerMsg *request, ProductionStatus *status,
         
         // Update the production status
         status->sold_items[request->product_type] += request->quantity;
+        
+        // Calculate and update profit
+        double price = config.product_prices[request->product_type];
+        double sale_profit = price * request->quantity;
+        status->total_profit += sale_profit;
         
         // Count this as a successful transaction
         (*customers_served)++;

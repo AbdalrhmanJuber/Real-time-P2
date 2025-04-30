@@ -43,11 +43,18 @@ void customer_generator(int msg_queue_id, int prod_status_shm_id,
             printf("Generated customer %d with PID %d\n", customer_id, pid);
             customer_id++;
             
-            // Wait a random amount of time before generating the next customer
-            int wait_time = config.customer_params[0] + 
-                           rand() % (config.customer_params[1] - config.customer_params[0] + 1);
+            // Wait a shorter random amount of time before generating the next customer
+            // Using shorter wait times to generate more customers during the simulation
+            int wait_time = 1 + rand() % 3;  // 1-3 seconds between customers instead of using config params
             
             sleep(wait_time);
+            
+            // Generate multiple waves of customers
+            if (customer_id >= 10) {
+                // After generating 10 customers, wait a bit
+                sleep(5);
+                // Continue generating more customers
+            }
         }
     }
     
