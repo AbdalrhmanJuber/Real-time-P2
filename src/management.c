@@ -48,7 +48,6 @@ void management_process(int inventory_shm_id, int prod_status_shm_id,
         struct {
             long msg_type;
             RawMaterialType material;
-            int urgency;
         } supply_chain_msg;
         
         ManagementMsg mgmt_msg;
@@ -66,8 +65,8 @@ void management_process(int inventory_shm_id, int prod_status_shm_id,
         
         if (recv_size != -1) {
             // We received a supply chain update
-            printf("Management received supply chain update for material %d, urgency %d\n",
-                   msg.supply_chain_msg.material, msg.supply_chain_msg.urgency);
+            printf("Management received supply chain update for material %d\n",
+                   msg.supply_chain_msg.material);
         }
         
         // Check if we need to rebalance production

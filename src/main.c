@@ -95,7 +95,7 @@ void initialize_ipc_resources() {
     prod_status_shm_id = shmget(PRODUCTION_SHM_KEY, sizeof(ProductionStatus), IPC_CREAT | 0666);
     if (prod_status_shm_id == -1) {
         perror("Failed to create production status shared memory");
-        shmctl(inventory_shm_id, IPC_RMID, NULL);
+        shmctl(inventory_shm_id, IPC_RMID, NULL); // Clean up since it the only one exits
         exit(EXIT_FAILURE);
     }
     
@@ -154,6 +154,15 @@ void initialize_ipc_resources() {
     }
     
     // Create message queues
+
+    /*
+    Enables communication between customers and sellers
+    Allows customers to send product requests to sellers
+    Lets customers file complaints about products
+    Permits sellers to send responses back to specific customers
+    Facilitates asynchronous interaction between customers and bakery staff
+    */
+
     customer_msgq_id = msgget(CUSTOMER_MSG_KEY, IPC_CREAT | 0666);
     if (customer_msgq_id == -1) {
         perror("Failed to create customer message queue");
@@ -161,6 +170,13 @@ void initialize_ipc_resources() {
         exit(EXIT_FAILURE);
     }
     
+    /*
+    Enables communication between supply chain employees and management
+    Used for sending urgent supply updates when inventory runs low
+    Allows management to send decisions about resource allocation
+    Used for simulation control messages (like termination notifications)
+    */
+
     management_msgq_id = msgget(MANAGEMENT_MSG_KEY, IPC_CREAT | 0666);
     if (management_msgq_id == -1) {
         perror("Failed to create management message queue");

@@ -54,7 +54,6 @@ void supply_chain_process(int id, int inventory_shm_id, int prod_status_shm_id,
     struct {
         long msg_type;
         RawMaterialType material;
-        int urgency;  // 0=normal, 1=low, 2=critical
     } supply_msg;
     
     // Main processing loop
@@ -77,29 +76,6 @@ void supply_chain_process(int id, int inventory_shm_id, int prod_status_shm_id,
                 inventory->quantities[i] += order_amount;
                 
                 printf("Supply chain employee %d ordered %d of item type %d\n", id, order_amount, i);
-                
-                // Calculate urgency level
-                int urgency = 0;
-                if (inventory->quantities[i] < inventory->min_thresholds[i] / 2) {
-                    urgency = 1;  // Low
-                }
-                if (inventory->quantities[i] <= 0) {
-                    urgency = 2;  // Critical
-                }
-                
-                // Notify management if urgency is not normal
-                if (urgency > 0) {
-                    supply_msg.msg_type = MSG_SUPPLY_CHAIN_UPDATE;
-                    supply_msg.material = (RawMaterialType)i;
-                    supply_msg.urgency = urgency;
-                    
-                    if (msgsnd(management_msgq_id, &supply_msg, 
-                              sizeof(supply_msg) - sizeof(long), 0) == -1) {
-                        perror("Supply Chain: Failed to send message to queue");
-                    } else {
-                        printf("Supply chain sent urgency notification for material %d\n", i);
-                    }
-                }
                 
                 reordered = true;
                 
