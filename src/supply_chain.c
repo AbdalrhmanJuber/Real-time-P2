@@ -35,6 +35,16 @@ void initialize_inventory(Inventory *inventory, BakeryConfig config) {
 void supply_chain_process(int id, int inventory_shm_id, int prod_status_shm_id,
                         int inventory_sem_id, int management_msgq_id, BakeryConfig config) {
     
+
+    /*
+    It's a common practice to acquire resources in a consistent order to prevent deadlocks
+    The order here is:
+    Attach to shared memory (get the resource)
+    Use semaphores to protect access (protect the resource)
+    Access the shared memory (use the resource)
+    */
+
+
     // Attach to shared memory segments
     Inventory *inventory = (Inventory *) shmat(inventory_shm_id, NULL, 0);
     ProductionStatus *status = (ProductionStatus *) shmat(prod_status_shm_id, NULL, 0);

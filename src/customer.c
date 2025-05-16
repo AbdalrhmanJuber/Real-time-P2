@@ -176,14 +176,37 @@ void customer_process(int id, int msg_queue_id, int prod_status_shm_id, int prod
         
         // Decide if customer complains
         if ((double)rand() / RAND_MAX < config.complaint_probability) {
-            // Send a complaint message
+            // Send a complaint message with purchase details for reimbursement
             request_msg.is_complaint = true;
             request_msg.msg_type = MSG_CUSTOMER_REQUEST;
+            
+            // Broadcast complaint to all customers currently in the bakery
+            CustomerMsg broadcast_msg;
+            broadcast_msg.msg_type = MSG_CUSTOMER_COMPLAINT_BROADCAST;
+            broadcast_msg.customer_id = id;
             
             if (msgsnd(msg_queue_id, &request_msg, sizeof(request_msg) - sizeof(long), 0) == -1) {
                 perror("Customer: Failed to send complaint message");
             } else {
-                printf("Customer %d filed a complaint\n", id);
+                printf("Customer %d filed a complaint and will be reimbursed\n", id);
+                
+                // Broadcast the complaint to potentially affect other customers
+                if (msgsnd(msg_queue_id, &broadcast_msg, sizeof(broadcast_msg) - sizeof(long), 0) == -1) {
+                    perror("Customer: Failed to broadcast complaint");
+                }
+            }
+        }
+    } else {
+        // Even satisfied customers might leave if they witness a complaint
+        // Check for any complaint broadcasts
+        CustomerMsg broadcast_msg;
+        if (msgrcv(msg_queue_id, &broadcast_msg, sizeof(CustomerMsg) - sizeof(long),
+               MSG_CUSTOMER_COMPLAINT_BROADCAST, IPC_NOWAIT) != -1) {
+            // Another customer complained while this one was present
+            if ((double)rand() / RAND_MAX < LEAVE_ON_COMPLAINT_PROBABILITY) {
+                printf("Customer %d is leaving without purchase after witnessing a complaint\n", id);
+                status->frustrated_customers++;
+                all_requests_fulfilled = false;
             }
         }
     }

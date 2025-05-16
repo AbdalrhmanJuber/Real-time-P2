@@ -14,11 +14,24 @@
 #define MANAGEMENT_MSG_KEY 0x6789
 
 // Message types
-#define MSG_CUSTOMER_REQUEST 1
+#define MSG_CUSTOMER_REQUEST 1 // Used for both product requests and complaints
+// Controls staff reallocation
+// Example: Moving chefs between departments when one area is busy
 #define MSG_MANAGEMENT_DECISION 2
+// Used to request restocking of materials
+// Example: Notifying when flour inventory is low
 #define MSG_SUPPLY_CHAIN_UPDATE 3
+// Used for graceful termination of the simulation
+// Example: When simulation reaches its time limit or meets ending condition
 #define MSG_SIMULATION_END 4
+// Ensures responses go back to the correct customer
+// Example: If customer ID is 5, their response message type would be 105 (100 + 5)
 #define MSG_CUSTOMER_RESPONSE_BASE 100  // Base for customer response IDs
+// For notifying other customers about complaints
+#define MSG_CUSTOMER_COMPLAINT_BROADCAST 5  // For notifying other customers about complaints
+
+// Probability constants
+#define LEAVE_ON_COMPLAINT_PROBABILITY 0.3  // 30% chance that a customer leaves after witnessing a complaint
 
 // Inventory item types (raw materials)
 typedef enum {
